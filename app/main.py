@@ -1,0 +1,267 @@
+"""CLI entrypoint (Typer).
+
+    python -m app.main run                 # full pipeline from .env
+    python -m app.main run --dry-run       # creative artifacts only (cheap)
+    python -m app.main run --force         # ignore saved progress, start fresh
+    python -m app.main config              # show the resolved (sanitised) config
+    python -m app.main doctor              # check ffmpeg + required API keys
+"""
+
+from __future__ import annotations
+
+import shutil
+from pathlib import Path
+
+import typer
+from rich.console import Console
+from rich.table import Table
+
+from app import __version__
+from app.config import Settings, get_settings
+from app.logging_config import configure_logging, get_logger
+
+app = typer.Typer(
+    add_completion=False,
+    help="ai-genre-pipeline — turn a .env genre into AI songs + music videos.",
+    no_args_is_help=True,
+)
+console = Console()
+log = get_logger("cli")
+
+
+def _load_settings(env_file: str | None) -> Settings:
+    if env_file:
+        if not Path(env_file).exists():
+            console.print(f"[red]Env file not found:[/red] {env_file}")
+            raise typer.Exit(2)
+        return Settings(_env_file=env_file)  # type: ignore[call-arg]
+    return get_settings()
+
+
+# Maps each backend choice to the config fields it needs.
+_REQUIRED: dict[tuple[str, str], list[str]] = {
+    ("llm_provider", "claude"): ["anthropic_api_key"],
+    ("llm_provider", "openai"): ["openai_api_key"],
+    ("llm_provider", "grok"): ["xai_api_key"],
+    ("music_backend", "suno_thirdparty"): ["suno_api_key", "suno_api_base"],
+    ("image_backend", "openai"): ["openai_api_key"],
+    ("video_backend", "kling"): ["kling_access_key", "kling_secret_key"],
+    ("video_backend", "runway"): ["runway_api_key"],
+}
+
+
+@app.command()
+def run(
+    env_file: str = typer.Option(None, "--env-file", "-e", help="Path to a .env (default: ./.env)."),
+    force: bool = typer.Option(False, "--force", "-f", help="Ignore saved progress and start fresh."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Generate creative artifacts only; skip media."),
+    stream: bool | None = typer.Option(
+        None, "--stream/--no-stream",
+        help="Override STREAM_ENABLED for this run.",
+    ),
+) -> None:
+    """Run the full generation pipeline (optionally live-streaming as it goes)."""
+    cfg = _load_settings(env_file)
+    configure_logging(cfg.log_level, cfg.log_pretty)
+
+    # Import here so `config`/`doctor` work even if a heavy dep is missing.
+    from app.config import StreamMode
+    from app.orchestrator import Orchestrator
+
+    orch = Orchestrator(cfg)
+
+    streaming = (cfg.stream_enabled if stream is None else stream) and not dry_run
+    stream_mgr = _build_stream_manager(cfg, orch.paths) if streaming else None
+    streaming = stream_mgr is not None  # may have been disabled (no targets)
+
+    # In `live` mode we start the broadcaster up-front (standby plays until the
+    # first clip lands) and enqueue each track the moment it finishes.
+    hook = None
+    if stream_mgr and cfg.stream_mode is StreamMode.live:
+        stream_mgr.start(with_standby=True)
+        hook = stream_mgr.add_video
+
+    try:
+        manifest = orch.run(force=force, dry_run=dry_run, on_track_complete=hook)
+    except Exception as exc:  # noqa: BLE001 - surface a clean message to the user
+        if stream_mgr:
+            stream_mgr.stop()
+        log.error("run_failed", error=str(exc))
+        console.print(f"\n[red bold]Run failed:[/red bold] {exc}")
+        raise typer.Exit(1)
+
+    finals = [t.final_video_path for t in manifest.tracks if t.final_video_path]
+    console.print("\n[green bold]Done.[/green bold]")
+    console.print(f"Run folder: [cyan]{cfg.output_dir / cfg.slug}[/cyan]")
+    if finals:
+        console.print("Final videos:")
+        for f in finals:
+            console.print(f"  • {f}")
+    elif dry_run:
+        console.print("Dry run complete — see 01_lyrics_and_concept/ and 02_character_bible/.")
+
+    # Hand off to the live stream and block until the operator stops it.
+    if stream_mgr:
+        abs_finals = [orch.paths.root / f for f in finals]
+        if cfg.stream_mode is StreamMode.after:
+            if not abs_finals:
+                console.print("[yellow]Nothing to stream.[/yellow]")
+                return
+            stream_mgr.start(with_standby=False)
+            stream_mgr.add_existing(abs_finals)
+        _serve_stream(stream_mgr)
+
+
+def _build_stream_manager(cfg, paths):
+    """Construct a StreamManager, or warn + return None if it can't stream."""
+    from app.streaming import StreamManager
+    from app.streaming.manager import StreamError
+
+    try:
+        return StreamManager(cfg, paths)
+    except StreamError as exc:
+        console.print(f"[yellow]Streaming disabled:[/yellow] {exc}")
+        return None
+
+
+def _serve_stream(stream_mgr) -> None:
+    platforms = ", ".join(t.platform.value for t in stream_mgr.targets)
+    console.print(f"\n[magenta bold]● LIVE[/magenta bold] streaming to: {platforms}")
+    console.print("[dim]Looping the library so it never stops. Press Ctrl-C to end.[/dim]")
+    try:
+        stream_mgr.wait()
+    finally:
+        stream_mgr.stop()
+        console.print("\n[green]Stream stopped.[/green]")
+
+
+@app.command()
+def config(
+    env_file: str = typer.Option(None, "--env-file", "-e", help="Path to a .env (default: ./.env)."),
+) -> None:
+    """Print the resolved configuration (secrets masked)."""
+    cfg = _load_settings(env_file)
+    table = Table(title="Resolved configuration", show_lines=False)
+    table.add_column("Setting", style="cyan", no_wrap=True)
+    table.add_column("Value", style="white")
+
+    secret_like = ("key", "secret", "token")
+    for name, value in cfg.model_dump(mode="json").items():
+        shown = value
+        if any(s in name for s in secret_like) and value:
+            shown = "•" * 8 + " (set)"
+        elif any(s in name for s in secret_like):
+            shown = "[dim](unset)[/dim]"
+        table.add_row(name, str(shown))
+    console.print(table)
+    console.print(f"\nRun folder would be: [cyan]{cfg.output_dir / cfg.slug}[/cyan]")
+
+
+@app.command()
+def doctor(
+    env_file: str = typer.Option(None, "--env-file", "-e", help="Path to a .env (default: ./.env)."),
+) -> None:
+    """Check ffmpeg availability and that selected backends have their keys."""
+    cfg = _load_settings(env_file)
+    ok = True
+
+    # 1. ffmpeg / ffprobe
+    for tool in ("ffmpeg", "ffprobe"):
+        if shutil.which(tool):
+            console.print(f"[green]✓[/green] {tool} found")
+        else:
+            ok = False
+            console.print(f"[red]✗[/red] {tool} NOT found on PATH (required for assembly)")
+
+    # 2. backend keys
+    selections = {
+        "llm_provider": cfg.llm_provider.value,
+        "music_backend": cfg.music_backend.value,
+        "image_backend": cfg.image_backend.value,
+        "video_backend": cfg.video_backend.value,
+    }
+    for field, choice in selections.items():
+        needed = _REQUIRED.get((field, choice), [])
+        missing = [n for n in needed if not str(getattr(cfg, n, "")).strip()]
+        label = f"{field}={choice}"
+        if missing:
+            ok = False
+            console.print(f"[red]✗[/red] {label} missing: {', '.join(m.upper() for m in missing)}")
+        else:
+            console.print(f"[green]✓[/green] {label} configured")
+
+    if cfg.video_backend.value == "comfyui" and not cfg.comfyui_video_workflow.strip():
+        console.print("[yellow]![/yellow] VIDEO_BACKEND=comfyui needs COMFYUI_VIDEO_WORKFLOW set")
+
+    # 3. live streaming
+    if cfg.stream_enabled:
+        selected = cfg.stream_targets
+        usable = [p for p in selected if cfg.stream_url_for(p)]
+        if usable:
+            console.print(
+                f"[green]✓[/green] streaming -> {', '.join(p.value for p in usable)} "
+                f"(mode={cfg.stream_mode.value})"
+            )
+            for p in selected:
+                if p not in usable:
+                    console.print(f"[yellow]![/yellow] stream target '{p.value}' selected but has no key/URL")
+        else:
+            ok = False
+            console.print("[red]✗[/red] STREAM_ENABLED but no platform has a key/URL set")
+
+    console.print(
+        "\n[green bold]All checks passed.[/green bold]" if ok
+        else "\n[red bold]Some checks failed — see above.[/red bold]"
+    )
+    raise typer.Exit(0 if ok else 1)
+
+
+@app.command()
+def stream(
+    env_file: str = typer.Option(None, "--env-file", "-e", help="Path to a .env (default: ./.env)."),
+    run_name: str = typer.Option(None, "--run", help="Stream a run folder by name (under OUTPUT_DIR)."),
+    directory: str = typer.Option(None, "--dir", help="Stream every *.mp4 in this folder."),
+) -> None:
+    """Live-stream an already-generated library (no generation).
+
+    Loops the videos forever so the channel never goes dark. With no --run/--dir
+    it streams the run folder implied by the current .env.
+    """
+    cfg = _load_settings(env_file)
+    configure_logging(cfg.log_level, cfg.log_pretty)
+
+    from app.streaming import StreamManager
+    from app.streaming.manager import StreamError
+    from app.utils import RunPaths
+
+    if directory:
+        root = Path(directory)
+        videos = sorted(root.glob("*.mp4"))
+    else:
+        root = cfg.output_dir / (run_name or cfg.slug)
+        videos = sorted((root / "05_final_videos").glob("*.mp4"))
+
+    if not videos:
+        console.print(f"[red]No .mp4 videos found to stream[/red] (looked in {root}).")
+        raise typer.Exit(1)
+
+    try:
+        mgr = StreamManager(cfg, RunPaths(root).ensure())
+    except StreamError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1)
+
+    console.print(f"Streaming [cyan]{len(videos)}[/cyan] video(s) from [cyan]{root}[/cyan].")
+    mgr.start(with_standby=False)
+    mgr.add_existing(videos)
+    _serve_stream(mgr)
+
+
+@app.command()
+def version() -> None:
+    """Print the pipeline version."""
+    console.print(f"ai-genre-pipeline {__version__}")
+
+
+if __name__ == "__main__":
+    app()

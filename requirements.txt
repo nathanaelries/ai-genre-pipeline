@@ -1,0 +1,19 @@
+# ---- Core runtime ----
+typer>=0.12.0              # CLI / orchestrator entrypoint
+pydantic>=2.7.0           # data models (Visual Bible, Scenes, ...)
+pydantic-settings>=2.3.0  # .env-driven configuration
+python-dotenv>=1.0.1      # load .env into the environment
+httpx>=0.27.0             # async/sync HTTP client for all API calls
+tenacity>=8.3.0           # retry/backoff for flaky AI APIs
+structlog>=24.1.0         # structured logging
+rich>=13.7.0              # pretty console logging + progress bars
+jinja2>=3.1.4             # prompt templating
+
+# ---- Media assembly ----
+ffmpeg-python>=0.2.0      # thin ffmpeg wrapper used by the assembler
+moviepy>=1.0.3            # higher-level editing / lyric overlays
+Pillow>=10.3.0            # reference-image handling / thumbnails
+
+# ---- Optional provider SDKs (pipeline also works via raw HTTP) ----
+anthropic>=0.34.0         # LLM_PROVIDER=claude
+openai>=1.40.0            # LLM_PROVIDER=openai / IMAGE_BACKEND=openai

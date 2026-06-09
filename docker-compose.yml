@@ -1,0 +1,58 @@
+# docker-compose for the ai-genre-pipeline.
+#
+#   Orchestrator only (cloud backends):
+#     docker compose run --rm orchestrator run
+#
+#   With local ComfyUI for high-consistency visuals:
+#     docker compose --profile local up -d comfyui
+#     docker compose run --rm orchestrator run
+#
+# All tunables live in .env (see .env.example).
+
+services:
+  orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ai-genre-pipeline:latest
+    env_file:
+      - .env
+    volumes:
+      # Persist every generated artifact on the host.
+      - ./outputs:/app/outputs
+    # When COMFYUI_URL points at the bundled service below, this lets the
+    # orchestrator reach it by service name without host networking.
+    networks:
+      - agp
+    # The orchestrator is a batch job, not a long-running server.
+    restart: "no"
+
+  # ---------------------------------------------------------------------------
+  # Optional local visual backend. Enabled only with `--profile local`.
+  # Requires an NVIDIA GPU + nvidia-container-toolkit on the host.
+  # Set IMAGE_BACKEND=comfyui / VIDEO_BACKEND=comfyui and
+  # COMFYUI_URL=http://comfyui:8188 in .env to use it.
+  # ---------------------------------------------------------------------------
+  comfyui:
+    image: yanwk/comfyui-boot:latest
+    profiles: ["local"]
+    ports:
+      - "8188:8188"
+    volumes:
+      - ./comfyui/models:/root/ComfyUI/models
+      - ./comfyui/input:/root/ComfyUI/input
+      - ./comfyui/output:/root/ComfyUI/output
+    networks:
+      - agp
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+
+networks:
+  agp:
+    driver: bridge

@@ -1,0 +1,12 @@
+# Normalise line endings: the code runs in a Linux Docker image, so store text
+# as LF in the repo regardless of the host OS. Keeps diffs clean cross-platform.
+* text=auto eol=lf
+
+# Binary assets the pipeline may produce — never normalise these.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.mp3 binary
+*.wav binary
+*.mp4 binary
+*.ts  binary

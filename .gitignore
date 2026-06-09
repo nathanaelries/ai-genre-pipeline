@@ -1,0 +1,30 @@
+# Secrets / config
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Pipeline output (generated media can be large — never commit)
+# Ignore everything under outputs/ except the placeholder that keeps the dir.
+outputs/*
+!outputs/.gitkeep
+
+# Local model / tool caches
+comfyui/models/
+.cache/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -1,0 +1,25 @@
+# Keep the build context small and free of secrets/large media.
+.git/
+.gitignore
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Never bake secrets or generated output into the image
+.env
+.env.*
+!.env.example
+outputs/
+comfyui/models/
+.cache/
+
+# Docs / editor noise
+.idea/
+.vscode/
+*.md
+!README.md
