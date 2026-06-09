@@ -33,7 +33,7 @@ def get_llm(cfg: Settings) -> LLMProviderBase:
             name="grok",
             base_url="https://api.x.ai/v1",
             api_key=cfg.xai_api_key,
-            model="grok-2-latest",
+            model="grok-3",
         )
 
     raise ValueError(f"Unsupported LLM provider: {cfg.llm_provider}")
