@@ -44,6 +44,11 @@ WORKDIR /app
 COPY --chown=appuser:appuser app/ ./app/
 COPY --chown=appuser:appuser pyproject.toml ./
 
+# Pre-create the outputs mount point owned by the runtime user. When a named
+# (or bind) volume is mounted here, Docker initializes it from this directory,
+# so the volume inherits appuser ownership and the non-root process can write.
+RUN mkdir -p /app/outputs && chown appuser:appuser /app/outputs
+
 USER appuser
 
 # Default: show CLI help. `docker compose run orchestrator run` to execute.

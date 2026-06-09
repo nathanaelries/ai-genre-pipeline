@@ -49,7 +49,9 @@ docker compose run --rm orchestrator doctor
 docker compose run --rm orchestrator run
 ```
 
-Outputs land in `./outputs/<run-name>/` (mounted from the container).
+Every run's output is written to a **persistent Docker data volume** (`agp_outputs`),
+so generated content survives `docker compose down`, image rebuilds, and container
+recreation — see [Persisting & retrieving content](#persisting--retrieving-generated-content).
 
 ### With local ComfyUI (highest consistency, needs an NVIDIA GPU)
 
@@ -287,6 +289,45 @@ outputs/<run-name>/
 ├── manifest.json               # full machine-readable record of the run
 └── state.json                  # resume checkpoints
 ```
+
+---
+
+## Persisting & retrieving generated content
+
+All output is stored in a **named Docker volume, `agp_outputs`** (mounted at
+`/app/outputs` in the container), declared in [docker-compose.yml](docker-compose.yml).
+It is managed by Docker and **persists across `docker compose down`, image rebuilds, and
+container recreation** — it is only deleted by an explicit `docker compose down -v` or
+`docker volume rm`. (The Dockerfile pre-creates the mount point owned by the non-root
+runtime user, so the volume is writable on first run.)
+
+```bash
+# Inspect the volume (real name is <project>_agp_outputs)
+docker volume ls
+docker volume inspect ai-genre-pipeline_agp_outputs
+
+# Copy everything out to ./exported on the host
+docker run --rm \
+  -v ai-genre-pipeline_agp_outputs:/data \
+  -v "$(pwd)/exported:/out" \
+  alpine sh -c "cp -a /data/. /out/"
+
+# Back up the whole volume to a tarball
+docker run --rm -v ai-genre-pipeline_agp_outputs:/data -v "$(pwd):/backup" \
+  alpine tar czf /backup/outputs-backup.tgz -C /data .
+```
+
+**Pin it to a specific disk** (e.g. a large drive on a homelab box): uncomment the
+`driver_opts` block under `volumes: agp_outputs:` in `docker-compose.yml` and set
+`device: /srv/ai-genre-pipeline/outputs`.
+
+**Prefer files directly on the host** (handiest for grabbing finished videos to upload):
+swap the volume for a bind mount — comment `- agp_outputs:/app/outputs` and uncomment
+`- ./outputs:/app/outputs` in the `orchestrator` service. On Linux, make the host folder
+writable by the container user (uid 1000), e.g. `mkdir -p outputs && sudo chown 1000:1000 outputs`.
+
+> Running the pipeline **without Docker** (local Python) already writes straight to
+> `./outputs/` on your machine, so nothing extra is needed there.
 
 ---
 

@@ -18,8 +18,16 @@ services:
     env_file:
       - .env
     volumes:
-      # Persist every generated artifact on the host.
-      - ./outputs:/app/outputs
+      # Durable, Docker-managed data volume for ALL generated content
+      # (music, scenes, final videos, stream segments, manifests, state).
+      # Survives `docker compose down`, image rebuilds and container recreation,
+      # so nothing generated is ever lost. Removed only by an explicit
+      # `docker compose down -v` or `docker volume rm`.
+      - agp_outputs:/app/outputs
+      #
+      # Prefer the files directly on the host (easier to grab finished videos)?
+      # Comment the line above and uncomment this bind mount instead:
+      # - ./outputs:/app/outputs
     # When COMFYUI_URL points at the bundled service below, this lets the
     # orchestrator reach it by service name without host networking.
     networks:
@@ -52,6 +60,19 @@ services:
               count: all
               capabilities: [gpu]
     restart: unless-stopped
+
+volumes:
+  # Named data volume holding every run's output. Docker stores it under its own
+  # managed area; back it up or browse it with the commands in the README.
+  agp_outputs:
+    # To pin the volume to a specific host directory (e.g. a big disk on the NUC),
+    # uncomment and set `device` — content then lives there but stays a managed
+    # volume that survives container/image lifecycle:
+    # driver: local
+    # driver_opts:
+    #   type: none
+    #   o: bind
+    #   device: /srv/ai-genre-pipeline/outputs
 
 networks:
   agp:
