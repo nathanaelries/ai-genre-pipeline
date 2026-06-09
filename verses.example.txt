@@ -1,0 +1,9 @@
+# Verse list for the batch scripts. Copy to verses.txt and edit.
+# Format (one per line):   <run-name> | <theme / verse description>
+# Blank lines and lines starting with # are ignored.
+
+psalm-1    | Psalm 1 — the blessed one is like a tree planted by streams of water
+psalm-91   | Psalm 91 — dwelling in the shelter of the Most High; refuge and fortress
+psalm-121  | Psalm 121 — I lift my eyes to the hills; my help comes from the Maker of heaven and earth
+john-3-16  | John 3:16 — for God so loved the world that he gave his only Son
+isaiah-40  | Isaiah 40 — they who wait on the Lord renew their strength; they soar on wings like eagles

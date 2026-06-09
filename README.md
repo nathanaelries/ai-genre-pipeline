@@ -155,6 +155,20 @@ images are still generated — they're fresh shots **of the same character**, ke
 the imported reference images. Because each video is its own run folder, the previous ones are
 never overwritten, so they all stack up as a library (ready for the 24/7 stream).
 
+**Batching a whole series** — list your verses (`cp verses.example.txt verses.txt`, then edit
+`<run-name> | <theme>` per line) and use the bash helpers. A plain loop is the right tool here:
+the pipeline is deterministic, so there's nothing for an LLM agent to decide.
+
+```bash
+sudo bash scripts/batch-generate.sh           # generate every verse's silent video + Suno brief
+# ...render each Suno brief, drop the mp3 at outputs/<run>/03_music/track_01.mp3...
+sudo bash scripts/batch-finish.sh             # mux audio into every verse that has a song
+```
+
+Both scripts are re-runnable and skip finished work. The Suno render in the middle is manual
+with `prompt_only`; switch `MUSIC_BACKEND=suno_thirdparty` (+ a relay key) to make it a single
+unattended loop end-to-end.
+
 ### Adding your Suno song
 
 With `MUSIC_BACKEND=prompt_only`, the pipeline writes a paste-ready brief to

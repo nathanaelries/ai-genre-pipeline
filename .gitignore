@@ -30,6 +30,9 @@ mcps/
 # they never conflict on `git pull`. Compose auto-merges this on top of the base.
 docker-compose.override.yml
 
+# Your local verse list for the batch scripts (keep verses.example.txt tracked).
+verses.txt
+
 # Local model / tool caches
 comfyui/models/
 .cache/
