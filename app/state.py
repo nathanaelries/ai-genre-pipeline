@@ -58,6 +58,20 @@ class RunState:
         self._done.clear()
         self._save()
 
+    def clear(self, predicate) -> int:
+        """Forget completed steps whose key matches `predicate` (used by --redo).
+
+        Returns how many markers were removed. Clearing a step's marker makes the
+        orchestrator regenerate it on the next run while leaving every other
+        cached step intact.
+        """
+        removed = {k for k in self._done if predicate(k)}
+        if removed:
+            self._done -= removed
+            self._save()
+            log.info("state_cleared", count=len(removed), keys=sorted(removed))
+        return len(removed)
+
     # Stage-key helpers keep key naming consistent across the orchestrator.
     @staticmethod
     def scene_image(track: int, scene: int) -> str:

@@ -44,6 +44,20 @@ _SECRET_FIELDS = {
     "kling_access_key", "kling_secret_key", "runway_api_key",
 }
 
+# Named stages -> the state-key prefix(es) they own. Used by `--redo` to
+# regenerate one stage (e.g. re-write copyright-flagged lyrics) while keeping
+# every other expensive step (images, videos) cached.
+_STAGE_KEY_PREFIXES: dict[str, tuple[str, ...]] = {
+    "bible": ("bible",),
+    "refs": ("ref:",),
+    "concept": ("concept:",),   # song concept + lyrics
+    "scenes": ("scenes:",),
+    "images": ("image:",),
+    "videos": ("video:",),
+    "music": ("audio:",),       # song audio + Suno brief
+    "final": ("final:",),       # final assembly (incl. burned lyric overlay)
+}
+
 
 class Orchestrator:
     def __init__(self, cfg: Settings) -> None:
@@ -141,6 +155,36 @@ class Orchestrator:
 
         log.info("run_complete", run=self.paths.root.name, manifest=str(self.paths.manifest_file))
         return self.manifest
+
+    # ------------------------------------------------------------------ #
+    # Targeted regeneration
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def valid_stages() -> list[str]:
+        return list(_STAGE_KEY_PREFIXES)
+
+    def invalidate(self, stages: list[str]) -> int:
+        """Clear saved progress for the named stages so the next run redoes only
+        those (and leaves everything else cached). Returns markers cleared.
+
+        Example: invalidate(['concept','music','final']) re-writes the lyrics +
+        Suno brief and re-burns the lyric overlay, but keeps all generated images
+        and video clips.
+        """
+        unknown = [s for s in stages if s not in _STAGE_KEY_PREFIXES]
+        if unknown:
+            raise ValueError(
+                f"Unknown stage(s): {', '.join(unknown)}. "
+                f"Valid stages: {', '.join(_STAGE_KEY_PREFIXES)}"
+            )
+        prefixes = tuple(p for s in stages for p in _STAGE_KEY_PREFIXES[s])
+
+        def matches(key: str) -> bool:
+            return any(key == p or key.startswith(p) for p in prefixes)
+
+        cleared = self.state.clear(matches)
+        log.info("invalidate", stages=stages, cleared=cleared)
+        return cleared
 
     # ------------------------------------------------------------------ #
     # Stage 2: Visual Bible

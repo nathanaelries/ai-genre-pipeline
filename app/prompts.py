@@ -32,6 +32,12 @@ def song_concept_prompt(cfg: Settings, track_index: int) -> tuple[str, str]:
     system = (
         "You are an award-winning songwriter and music supervisor. You write "
         "emotionally resonant, singable lyrics and precise production briefs. "
+        "You write ORIGINAL lyrics: when the theme draws on existing works "
+        "(scripture, poems, stories, public figures), you express the ideas in "
+        "your own fresh wording and never reproduce or closely paraphrase any "
+        "specific copyrighted text or modern translation (e.g. NIV, ESV, NLT, "
+        "song lyrics). This keeps the output clear of automated copyright filters "
+        "such as Suno's. "
         "You always respond with a single valid JSON object and nothing else."
     )
     shape = {
@@ -47,7 +53,13 @@ def song_concept_prompt(cfg: Settings, track_index: int) -> tuple[str, str]:
         f"{_creative_context(cfg)}\n"
         f"This is track #{track_index + 1} of {cfg.num_tracks}.\n\n"
         "Write a complete song that fits the genre, theme and mood. The lyrics "
-        "should be evocative and connect to the recurring character's journey.\n\n"
+        "should be evocative and connect to the recurring character's journey.\n"
+        "IMPORTANT: the lyrics must be 100% original. If the theme references an "
+        "existing text (e.g. scripture or a known poem), capture its meaning and "
+        "imagery in entirely new phrasing — do NOT quote or near-quote any "
+        "published/copyrighted translation, so the song passes copyright filters. "
+        "If you must echo a source's exact words, only use clearly public-domain "
+        "wording (e.g. the KJV/ASV for the Bible); otherwise paraphrase freely.\n\n"
         "Respond with JSON exactly matching this shape:\n"
         f"{json.dumps(shape, indent=2)}"
     )

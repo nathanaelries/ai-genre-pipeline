@@ -60,6 +60,12 @@ def run(
         None, "--stream/--no-stream",
         help="Override STREAM_ENABLED for this run.",
     ),
+    redo: str = typer.Option(
+        None, "--redo",
+        help="Regenerate only these comma-separated stages, keeping the rest "
+        "cached: concept,music,scenes,images,videos,final,bible,refs. "
+        "E.g. --redo concept,music,final to rewrite lyrics without redoing images.",
+    ),
 ) -> None:
     """Run the full generation pipeline (optionally live-streaming as it goes)."""
     cfg = _load_settings(env_file)
@@ -70,6 +76,16 @@ def run(
     from app.orchestrator import Orchestrator
 
     orch = Orchestrator(cfg)
+
+    # Targeted regeneration: clear just the requested stages before running.
+    if redo:
+        stages = [s.strip() for s in redo.split(",") if s.strip()]
+        try:
+            cleared = orch.invalidate(stages)
+        except ValueError as exc:
+            console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(2)
+        console.print(f"[yellow]Redo:[/yellow] cleared {cleared} cached step(s) for: {', '.join(stages)}")
 
     streaming = (cfg.stream_enabled if stream is None else stream) and not dry_run
     stream_mgr = _build_stream_manager(cfg, orch.paths) if streaming else None

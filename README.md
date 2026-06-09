@@ -82,6 +82,7 @@ python -m app.main run
 | `run` | Run the full pipeline from `.env`. |
 | `run --dry-run` | Generate only the **creative** artifacts (Visual Bible, lyrics, scene list). Cheap; great for tuning prompts. |
 | `run --force` | Ignore saved progress and regenerate from scratch. |
+| `run --redo <stages>` | Regenerate only certain stages, keeping the rest cached (see below). |
 | `run --stream` / `--no-stream` | Force live streaming on/off for this run (overrides `STREAM_ENABLED`). |
 | `run -e path/to/.env` | Use an alternate env file. |
 | `stream` | Live-stream an already-generated library on a loop (no generation). `--run <name>` or `--dir <folder>`. |
@@ -91,6 +92,26 @@ python -m app.main run
 
 Runs are **resumable**: progress is saved to `state.json` after every expensive step, so
 re-running continues where it stopped. Use `--force` to start over.
+
+### Regenerating a single stage (`--redo`)
+
+Sometimes you want to redo *one* step without paying to regenerate everything — the classic
+case is **a music service flagging your lyrics as copyrighted** and needing fresh lyrics while
+keeping all the (expensive) images and video clips you already made.
+
+```bash
+# Rewrite the lyrics + Suno brief and re-burn the lyric overlay, keep all visuals:
+docker compose run --rm orchestrator run --redo concept,music,final
+```
+
+Valid stages: `bible`, `refs`, `concept` (lyrics), `scenes`, `images`, `videos`,
+`music` (audio + Suno brief), `final` (assembly + lyric overlay). Each clears only its own
+cached checkpoints; the next `run` regenerates exactly those and reuses the rest.
+
+> **Lyrics & copyright:** the songwriting prompt instructs the LLM to write *original* lyrics
+> and never reproduce a copyrighted translation/text verbatim (e.g. NIV/ESV), so output clears
+> automated filters like Suno's. If a song still gets flagged, `--redo concept,music,final`
+> regenerates it with fresh wording.
 
 ---
 
