@@ -28,6 +28,12 @@ services:
       # Prefer the files directly on the host (easier to grab finished videos)?
       # Comment the line above and uncomment this bind mount instead:
       # - ./outputs:/app/outputs
+      #
+      # "git pull and run" workflow: mount the source so pulled code changes take
+      # effect WITHOUT rebuilding the image (the image bakes app/ in at build time,
+      # so otherwise you must `docker compose build` after every pull). You still
+      # need to rebuild when requirements.txt changes. Uncomment to enable:
+      # - ./app:/app/app:ro
     # When COMFYUI_URL points at the bundled service below, this lets the
     # orchestrator reach it by service name without host networking.
     networks:

@@ -53,6 +53,22 @@ Every run's output is written to a **persistent Docker data volume** (`agp_outpu
 so generated content survives `docker compose down`, image rebuilds, and container
 recreation — see [Persisting & retrieving content](#persisting--retrieving-generated-content).
 
+### Updating after a `git pull` (rebuild the image!)
+
+The image bakes `app/` in at build time, so **pulling new code does not change what
+the container runs until you rebuild**:
+
+```bash
+git pull
+docker compose build                       # <-- required after code changes
+docker compose run --rm orchestrator run
+# (or do both at once:)  docker compose run --build orchestrator run
+```
+
+Tip for a "pull and run" homelab setup: uncomment `- ./app:/app/app:ro` in
+[docker-compose.yml](docker-compose.yml) to mount the source, so future pulls take effect
+without rebuilding (you still rebuild when `requirements.txt` changes).
+
 ### With local ComfyUI (highest consistency, needs an NVIDIA GPU)
 
 ```bash
