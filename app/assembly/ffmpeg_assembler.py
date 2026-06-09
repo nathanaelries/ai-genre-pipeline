@@ -108,9 +108,14 @@ class FFmpegAssembler:
         if not clips:
             raise AssemblyError("No clips to concatenate.")
         listing = dest.parent / "_concat_list.txt"
-        # ffmpeg concat demuxer needs forward slashes + escaped quotes.
+        # The concat demuxer resolves relative entries against the LIST FILE's
+        # directory (not the CWD), so a list in 05_final_videos/ pointing at
+        # 04_scenes/ clips would double the path. Write absolute paths instead
+        # (-safe 0 below permits them). Forward slashes + escaped quotes keep
+        # ffmpeg happy on every platform.
         listing.write_text(
-            "".join(f"file '{c.as_posix()}'\n" for c in clips), encoding="utf-8"
+            "".join(f"file '{c.resolve().as_posix()}'\n" for c in clips),
+            encoding="utf-8",
         )
         _run([
             "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(listing),
