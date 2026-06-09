@@ -7,8 +7,9 @@ on the repo, and `git log` for the detail behind "Done".
 
 - [ ] **Lip-sync** (`LIPSYNC` env flag) is a stub/no-op. Needs a Wav2Lip / LatentSync
       ComfyUI workflow wired into the video stage (only meaningful with `VIDEO_BACKEND=comfyui`).
-- [ ] **Lyric timing is a naive even-split** across the track (no word-level sync).
-      Consider forced alignment (e.g. whisperX) for karaoke-grade timing.
+- [ ] **Burned lyrics are off by default** (`LYRICS_OVERLAY=false`) because the even-split
+      timing can't match the song's vocals. To make them usable, add **forced alignment**
+      (e.g. whisperX against the rendered audio) and only then re-enable the overlay.
 - [ ] **Lyric overlay needs ffmpeg+libass.** If the container's ffmpeg lacks it,
       `burn_subtitles` fails and the overlay is silently skipped. Add a `doctor` check for
       libass and/or a `drawtext`-based fallback overlay.

@@ -126,18 +126,31 @@ class FFmpegAssembler:
         return dest
 
     def mux_audio(self, video: Path, audio: Path, dest: Path) -> Path:
-        """Mux audio under video with fade-in/out, trimmed to the shorter track."""
-        v_dur = self.probe_duration(video)
+        """Fit the video to the SONG length, then mux with fade-in/out.
+
+        The song length isn't known until the user supplies the rendered track
+        (Suno etc.), so the scene video is almost never the right length. Here we
+        adapt to the real audio: ``-stream_loop -1`` repeats the visual sequence
+        to cover a longer song, and ``-t <song>`` cuts to exactly the song length
+        (which also trims the video when the song is shorter). The whole song
+        always plays; the video matches it. (Requires a re-encode, since looping
+        a file input can't be stream-copied cleanly.)
+        """
         a_dur = self.probe_duration(audio)
-        end = max(min(v_dur, a_dur), 0.1)
-        fade_out_start = max(end - 2.0, 0.0)
+        if a_dur <= 0:  # unreadable audio — fall back to the video's own length
+            a_dur = max(self.probe_duration(video), 0.1)
+        fade_out_start = max(a_dur - 2.0, 0.0)
         afade = f"afade=t=in:st=0:d=1.5,afade=t=out:st={fade_out_start:.2f}:d=2.0"
         _run([
-            "ffmpeg", "-y", "-i", str(video), "-i", str(audio),
-            "-filter:a", afade,
+            "ffmpeg", "-y",
+            "-stream_loop", "-1", "-i", str(video),   # loop visuals to cover the song
+            "-i", str(audio),
             "-map", "0:v:0", "-map", "1:a:0",
-            "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
-            "-shortest", str(dest),
+            "-filter:a", afade,
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", str(self.fps),
+            "-c:a", "aac", "-b:a", "192k",
+            "-t", f"{a_dur:.3f}",                      # exact song length
+            str(dest),
         ])
         return dest
 

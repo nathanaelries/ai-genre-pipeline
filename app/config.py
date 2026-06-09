@@ -103,7 +103,10 @@ class Settings(BaseSettings):
         default=VideoBackendKind.kling, alias="VIDEO_BACKEND"
     )
 
-    lyrics_overlay: bool = Field(default=True, alias="LYRICS_OVERLAY")
+    # Off by default: burned lyrics are even-split across time and can't line up
+    # with the song's actual vocals without forced alignment, so they look wrong.
+    # The lyrics text is always saved under 01_lyrics_and_concept/ and 03_music/.
+    lyrics_overlay: bool = Field(default=False, alias="LYRICS_OVERLAY")
     lipsync: bool = Field(default=False, alias="LIPSYNC")
 
     # ---------------------------- api keys ---------------------------------- #
