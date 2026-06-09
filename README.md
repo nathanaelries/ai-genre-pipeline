@@ -171,6 +171,9 @@ docker compose run --rm orchestrator add-audio inbox/my-song.mp3 --run scripture
 that track's final video (audio muxed in with fades + the lyric overlay) — everything else stays
 cached. Multi-track run? Use `--track 2`, etc.
 
+> **Permission denied?** The container runs as uid 1000, so a file dropped in `./inbox` must be
+> readable by it. If you hit `Can't access ...`, run `sudo chmod -R a+rX inbox` on the host and retry.
+
 Prefer to place the file yourself? Put it at `03_music/track_01.mp3` (or `.wav`) and run
 `run --redo final`; the assembler auto-detects `track_NN.<ext>` and muxes it. (Your `03_music/`
 lives in the `agp_outputs` volume, which is why the `./inbox` drop-folder + `add-audio` is the

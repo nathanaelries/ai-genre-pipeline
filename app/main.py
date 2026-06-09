@@ -282,7 +282,19 @@ def add_audio(
         cfg.run_name = run_name
 
     src = Path(file)
-    if not src.exists():
+    # `exists()` re-raises EACCES (it only swallows not-found errors), so guard it:
+    # the container runs as uid 1000 and may not be able to read a host file that
+    # was created root-owned or with restrictive permissions.
+    try:
+        present = src.exists()
+    except OSError as exc:
+        console.print(
+            f"[red]Can't access[/red] {file}: {exc}\n"
+            f"[yellow]Hint:[/yellow] the container runs as uid 1000. Make it readable "
+            f"on the host, e.g. [cyan]chmod -R a+rX inbox[/cyan], then retry."
+        )
+        raise typer.Exit(1)
+    if not present:
         console.print(f"[red]Audio file not found:[/red] {file}")
         raise typer.Exit(1)
 
@@ -300,7 +312,15 @@ def add_audio(
         raise typer.Exit(1)
 
     dest = orch.paths.music / f"track_{track:02d}{src.suffix.lower()}"
-    _shutil.copy2(src, dest)
+    try:
+        _shutil.copy2(src, dest)
+    except OSError as exc:
+        console.print(
+            f"[red]Could not copy the audio file:[/red] {exc}\n"
+            f"[yellow]Hint:[/yellow] make it readable by the container (uid 1000), "
+            f"e.g. [cyan]chmod -R a+rX inbox[/cyan], then retry."
+        )
+        raise typer.Exit(1)
     console.print(f"Added audio → [cyan]{orch.paths.rel(dest)}[/cyan]")
 
     if not reassemble:
