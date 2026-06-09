@@ -307,8 +307,20 @@ def add_audio(
         )
 
     orch = Orchestrator(cfg)
-    if not orch.paths.music.exists():
-        console.print(f"[red]No such run:[/red] {orch.paths.root}. Generate it first, or pass --run.")
+    # add-audio only makes sense for a run that has ALREADY been generated — it
+    # re-muxes audio into an existing video. Guard against an empty/fresh run
+    # folder (e.g. a brand-new or wrong outputs volume), which would otherwise
+    # fall through to a full, paid, different-character regeneration.
+    t0 = track - 1
+    generated = orch.state.is_done(f"final:{t0}") or orch.state.is_done(f"video:{t0}:0")
+    if not generated:
+        console.print(
+            f"[red]Run '{orch.paths.root.name}' (track {track}) has no generated video to "
+            f"add audio to.[/red]\n"
+            f"[yellow]Likely cause:[/yellow] you're pointing at an empty/wrong outputs volume "
+            f"(a freshly-created volume looks like this). Generate it first with `run`, or "
+            f"check your docker-compose volume mount. Refusing to regenerate from scratch."
+        )
         raise typer.Exit(1)
 
     dest = orch.paths.music / f"track_{track:02d}{src.suffix.lower()}"

@@ -26,6 +26,10 @@ inbox/*
 # Local-only scratch: exported MCP tool schemas (not part of this project).
 mcps/
 
+# Machine-specific Docker overrides (volume mounts, ports, etc.) — keep local so
+# they never conflict on `git pull`. Compose auto-merges this on top of the base.
+docker-compose.override.yml
+
 # Local model / tool caches
 comfyui/models/
 .cache/
