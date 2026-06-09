@@ -40,7 +40,8 @@ class PromptOnlyBackend(MusicBackendBase):
             audio_path=None,
             note=(
                 "No audio generated (prompt_only). Paste the Suno brief into "
-                "suno.com, then drop the rendered audio next to this file and "
-                "re-run to assemble the video."
+                "suno.com, then add the rendered file as 'track_NN.mp3' (or .wav) "
+                "in 03_music/ and re-assemble — easiest via "
+                "`add-audio <file> --track N`, or drop it in and `run --redo final`."
             ),
         )

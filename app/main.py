@@ -253,6 +253,75 @@ def doctor(
     raise typer.Exit(0 if ok else 1)
 
 
+@app.command("add-audio")
+def add_audio(
+    file: str = typer.Argument(
+        ...,
+        help="Audio file to ingest (a path the CONTAINER can see — e.g. "
+        "inbox/track_01.mp3 when you drop it in the ./inbox folder).",
+    ),
+    env_file: str = typer.Option(None, "--env-file", "-e", help="Path to a .env (default: ./.env)."),
+    run_name: str = typer.Option(None, "--run", help="Target run folder (default: from .env)."),
+    track: int = typer.Option(1, "--track", help="Track number (1-based)."),
+    reassemble: bool = typer.Option(
+        True, "--reassemble/--no-reassemble",
+        help="Re-mux the final video now (default), or just place the file.",
+    ),
+) -> None:
+    """Add a downloaded song (e.g. a Suno render) to a run and re-mux the video.
+
+    Drops the file into the run's 03_music/ as track_NN.<ext> and re-assembles
+    that track's final video with the audio + lyric overlay. Everything else
+    (concept, scenes, images, clips) stays cached.
+    """
+    import shutil as _shutil
+
+    cfg = _load_settings(env_file)
+    configure_logging(cfg.log_level, cfg.log_pretty)
+    if run_name:
+        cfg.run_name = run_name
+
+    src = Path(file)
+    if not src.exists():
+        console.print(f"[red]Audio file not found:[/red] {file}")
+        raise typer.Exit(1)
+
+    from app.orchestrator import _AUDIO_EXTS, Orchestrator
+
+    if src.suffix.lower() not in _AUDIO_EXTS:
+        console.print(
+            f"[yellow]Note:[/yellow] '{src.suffix}' isn't a typical audio extension "
+            f"({', '.join(_AUDIO_EXTS)}); proceeding anyway."
+        )
+
+    orch = Orchestrator(cfg)
+    if not orch.paths.music.exists():
+        console.print(f"[red]No such run:[/red] {orch.paths.root}. Generate it first, or pass --run.")
+        raise typer.Exit(1)
+
+    dest = orch.paths.music / f"track_{track:02d}{src.suffix.lower()}"
+    _shutil.copy2(src, dest)
+    console.print(f"Added audio → [cyan]{orch.paths.rel(dest)}[/cyan]")
+
+    if not reassemble:
+        console.print("Now run: [cyan]run --redo final[/cyan] to mux it into the video.")
+        return
+
+    # Clear only this track's final checkpoint, then re-assemble (all else cached).
+    orch.state.clear(lambda k: k == f"final:{track - 1}")
+    console.print("Re-assembling the final video with your audio…")
+    try:
+        manifest = orch.run()
+    except Exception as exc:  # noqa: BLE001
+        console.print(f"\n[red bold]Re-assembly failed:[/red bold] {exc}")
+        raise typer.Exit(1)
+
+    finals = [t.final_video_path for t in manifest.tracks if t.final_video_path]
+    console.print("\n[green bold]Done.[/green bold]")
+    for f in finals:
+        console.print(f"  • {f}")
+
+
 @app.command()
 def stream(
     env_file: str = typer.Option(None, "--env-file", "-e", help="Path to a .env (default: ./.env)."),

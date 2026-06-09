@@ -59,6 +59,9 @@ _STAGE_KEY_PREFIXES: dict[str, tuple[str, ...]] = {
     "final": ("final:",),       # final assembly (incl. burned lyric overlay)
 }
 
+# Audio containers a user might drop in from Suno (or another source).
+_AUDIO_EXTS = (".mp3", ".wav", ".m4a", ".flac", ".ogg", ".opus", ".aac")
+
 
 class Orchestrator:
     def __init__(self, cfg: Settings) -> None:
@@ -431,8 +434,30 @@ class Orchestrator:
     # ------------------------------------------------------------------ #
     # Music
     # ------------------------------------------------------------------ #
+    def _find_provided_audio(self, t: int) -> Path | None:
+        """Return a user-supplied audio file for this track, if one was dropped
+        into 03_music/ as `track_NN.<ext>` (e.g. the rendered Suno download)."""
+        stem = f"track_{t + 1:02d}"
+        for ext in _AUDIO_EXTS:
+            cand = self.paths.music / f"{stem}{ext}"
+            if cand.exists():
+                return cand
+        return None
+
     def _music_for_track(self, concept: SongConcept, t: int, target_seconds: float) -> Path | None:
         audio_marker = self.paths.music / f"track_{t + 1:02d}.audio_path.txt"
+
+        # A user-dropped audio file always wins — this is how a `prompt_only`
+        # run gets its song: drop `track_NN.mp3/.wav` into 03_music/ and the
+        # next assembly muxes it in. Also short-circuits paid re-generation when
+        # a backend already produced `track_NN.<ext>` on a prior run.
+        provided = self._find_provided_audio(t)
+        if provided:
+            audio_marker.write_text(str(provided), encoding="utf-8")
+            self.state.mark(RunState.track_audio(t))
+            log.info("music_provided_audio", track=t + 1, audio=provided.name)
+            return provided
+
         if self.state.is_done(RunState.track_audio(t)) and audio_marker.exists():
             saved = audio_marker.read_text(encoding="utf-8").strip()
             return Path(saved) if saved else None

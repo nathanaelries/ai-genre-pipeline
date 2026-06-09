@@ -19,6 +19,10 @@ venv/
 outputs/*
 !outputs/.gitkeep
 
+# Host drop-folder for imported audio/files — keep the dir, ignore contents.
+inbox/*
+!inbox/.gitkeep
+
 # Local model / tool caches
 comfyui/models/
 .cache/

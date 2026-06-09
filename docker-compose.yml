@@ -24,6 +24,9 @@ services:
       # so nothing generated is ever lost. Removed only by an explicit
       # `docker compose down -v` or `docker volume rm`.
       - agp_outputs:/app/outputs
+      # Host drop-folder for importing files (e.g. downloaded Suno songs). Put a
+      # file in ./inbox, then: `orchestrator add-audio inbox/track_01.mp3`.
+      - ./inbox:/app/inbox
       #
       # Prefer the files directly on the host (easier to grab finished videos)?
       # Comment the line above and uncomment this bind mount instead:

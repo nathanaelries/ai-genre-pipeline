@@ -102,6 +102,7 @@ python -m app.main run
 | `run --character <run>` | Reuse an existing character (Visual Bible + refs) for a new video. `--run`/`--theme` set the new folder + verse. |
 | `run --stream` / `--no-stream` | Force live streaming on/off for this run (overrides `STREAM_ENABLED`). |
 | `run -e path/to/.env` | Use an alternate env file. |
+| `add-audio <file>` | Add a downloaded song (e.g. a Suno render) to a run and re-mux the final video. `--run`, `--track`. |
 | `stream` | Live-stream an already-generated library on a loop (no generation). `--run <name>` or `--dir <folder>`. |
 | `config` | Print the resolved configuration (secrets masked). |
 | `doctor` | Verify `ffmpeg`/`ffprobe` are present and the selected backends + stream targets are configured. |
@@ -154,6 +155,27 @@ images are still generated — they're fresh shots **of the same character**, ke
 the imported reference images. Because each video is its own run folder, the previous ones are
 never overwritten, so they all stack up as a library (ready for the 24/7 stream).
 
+### Adding your Suno song
+
+With `MUSIC_BACKEND=prompt_only`, the pipeline writes a paste-ready brief to
+`03_music/track_NN_suno_prompt.txt` and produces a **silent** video. Once you've rendered the
+song in Suno and downloaded the `.mp3`/`.wav`, feed it back in:
+
+```bash
+# Drop the download into ./inbox on the host (it's mounted into the container),
+# then ingest + re-mux the final video in one command:
+docker compose run --rm orchestrator add-audio inbox/my-song.mp3 --run scripture-meditations --track 1
+```
+
+`add-audio` copies the file into the run as `03_music/track_NN.<ext>` and re-assembles **only**
+that track's final video (audio muxed in with fades + the lyric overlay) — everything else stays
+cached. Multi-track run? Use `--track 2`, etc.
+
+Prefer to place the file yourself? Put it at `03_music/track_01.mp3` (or `.wav`) and run
+`run --redo final`; the assembler auto-detects `track_NN.<ext>` and muxes it. (Your `03_music/`
+lives in the `agp_outputs` volume, which is why the `./inbox` drop-folder + `add-audio` is the
+easy path — no digging into the volume.)
+
 ---
 
 ## Configuration (`.env`)
@@ -181,9 +203,9 @@ See [.env.example](.env.example) for the fully-commented reference.
 
 - **Suno has no official public API.** `MUSIC_BACKEND=prompt_only` (the default) writes
   perfect lyrics + a paste-ready Suno brief to `03_music/` — you render in the Suno web UI,
-  drop the audio back in, and re-run to assemble. `suno_thirdparty` targets common relay
-  providers (sunoapi.org / EvoLink / 302.ai); endpoint paths are centralised in
-  [app/music/suno_thirdparty.py](app/music/suno_thirdparty.py) for easy adaptation.
+  then [add the downloaded song](#adding-your-suno-song) and re-assemble. `suno_thirdparty`
+  targets common relay providers (sunoapi.org / EvoLink / 302.ai); endpoint paths are
+  centralised in [app/music/suno_thirdparty.py](app/music/suno_thirdparty.py) for easy adaptation.
 - **No video backend configured / a scene fails?** The pipeline never dies — it falls back
   to an animated **Ken-Burns** clip of the scene still, so a run always produces a complete,
   correctly-timed video.
