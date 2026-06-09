@@ -45,6 +45,7 @@ _REQUIRED: dict[tuple[str, str], list[str]] = {
     ("llm_provider", "grok"): ["xai_api_key"],
     ("music_backend", "suno_thirdparty"): ["suno_api_key", "suno_api_base"],
     ("image_backend", "openai"): ["openai_api_key"],
+    ("image_backend", "xai"): ["xai_api_key"],
     ("video_backend", "kling"): ["kling_access_key", "kling_secret_key"],
     ("video_backend", "runway"): ["runway_api_key"],
 }

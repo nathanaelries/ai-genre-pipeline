@@ -12,6 +12,11 @@ def get_image_backend(cfg: Settings) -> ImageBackendBase:
 
         return OpenAIImageBackend(cfg)
 
+    if cfg.image_backend is ImageBackendKind.xai:
+        from app.image.xai_image import XAIImageBackend
+
+        return XAIImageBackend(cfg)
+
     if cfg.image_backend is ImageBackendKind.comfyui:
         from app.image.comfyui import ComfyUIImageBackend
 

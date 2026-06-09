@@ -107,7 +107,7 @@ Everything lives in `.env`. The creative block is all you change between genres:
 | `RESOLUTION`, `FPS`, `ASPECT` | Output geometry (`ASPECT` preset overrides `RESOLUTION`). |
 | `LLM_PROVIDER` | `claude` \| `openai` \| `grok` |
 | `MUSIC_BACKEND` | `suno_thirdparty` \| `local` \| `prompt_only` |
-| `IMAGE_BACKEND` | `openai` \| `comfyui` |
+| `IMAGE_BACKEND` | `openai` \| `xai` \| `comfyui` |
 | `VIDEO_BACKEND` | `kling` \| `runway` \| `comfyui` |
 | `LYRICS_OVERLAY`, `LIPSYNC` | Final-cut extras. |
 | `*_API_KEY`, `COMFYUI_URL`, ... | Credentials / endpoints. |
@@ -173,10 +173,11 @@ only use a relay if hands-off automation is worth the fragility.
 | Option | Where | Billing | Notes |
 |---|---|---|---|
 | **OpenAI images** | platform.openai.com | Per-image credits | Easiest cloud path; same key as the LLM. Good consistency via the locked character prompt. |
+| **xAI / Grok images** | console.x.ai | Per-image credits | `IMAGE_BACKEND=xai` (model `grok-2-image`). Lets a fully Grok pipeline run on **only `XAI_API_KEY`** — no OpenAI account needed. |
 | **ComfyUI (local)** *(best consistency)* | github.com/comfyanonymous/ComfyUI | Free software + a GPU | IP-Adapter/ControlNet give true face/wardrobe locking and the lowest per-image cost at volume. Needs an NVIDIA GPU (≥12–16 GB VRAM; RTX 3090/4090 ideal) **or** a rented cloud GPU (below). |
 
-**Recommended:** start on OpenAI for simplicity; move to ComfyUI once you care about
-tight character consistency or are generating at volume.
+**Recommended:** start on OpenAI (or xAI if you're already all-in on Grok) for simplicity;
+move to ComfyUI once you care about tight character consistency or are generating at volume.
 
 ### 4. Video — scene clips  *(by far the most expensive stage — budget here)*
 

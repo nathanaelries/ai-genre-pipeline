@@ -33,6 +33,7 @@ class MusicBackendKind(str, Enum):
 
 class ImageBackendKind(str, Enum):
     openai = "openai"
+    xai = "xai"          # xAI / Grok image model (grok-2-image)
     comfyui = "comfyui"
 
 
@@ -128,8 +129,9 @@ class Settings(BaseSettings):
     )
     comfyui_image_workflow: str = Field(default="", alias="COMFYUI_IMAGE_WORKFLOW")
     comfyui_video_workflow: str = Field(default="", alias="COMFYUI_VIDEO_WORKFLOW")
-    # OpenAI image model + Runway/Kling model identifiers (overridable per run).
+    # Image / video model identifiers (overridable per run).
     openai_image_model: str = Field(default="gpt-image-1", alias="OPENAI_IMAGE_MODEL")
+    xai_image_model: str = Field(default="grok-2-image", alias="XAI_IMAGE_MODEL")
     runway_model: str = Field(default="gen3a_turbo", alias="RUNWAY_MODEL")
     kling_model: str = Field(default="kling-v1", alias="KLING_MODEL")
 
