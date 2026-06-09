@@ -99,6 +99,7 @@ python -m app.main run
 | `run --dry-run` | Generate only the **creative** artifacts (Visual Bible, lyrics, scene list). Cheap; great for tuning prompts. |
 | `run --force` | Ignore saved progress and regenerate from scratch. |
 | `run --redo <stages>` | Regenerate only certain stages, keeping the rest cached (see below). |
+| `run --character <run>` | Reuse an existing character (Visual Bible + refs) for a new video. `--run`/`--theme` set the new folder + verse. |
 | `run --stream` / `--no-stream` | Force live streaming on/off for this run (overrides `STREAM_ENABLED`). |
 | `run -e path/to/.env` | Use an alternate env file. |
 | `stream` | Live-stream an already-generated library on a loop (no generation). `--run <name>` or `--dir <folder>`. |
@@ -128,6 +129,30 @@ cached checkpoints; the next `run` regenerates exactly those and reuses the rest
 > and never reproduce a copyrighted translation/text verbatim (e.g. NIV/ESV), so output clears
 > automated filters like Suno's. If a song still gets flagged, `--redo concept,music,final`
 > regenerates it with fresh wording.
+
+### Making a series — reuse one character across videos
+
+To build a channel of videos that all star the **same character** (e.g. one narrator across
+many psalms), generate the character once, then point every new video at it. The Visual Bible
+and reference images are imported and marked cached, so each new run only pays for the
+verse-specific stages (concept, scenes, scene images, video, final) — **not** the character.
+
+```bash
+# First video establishes the character (full run):
+docker compose run --rm orchestrator run            # -> outputs/scripture-meditations/
+
+# Next video: new folder + new verse, SAME character (no bible/ref regen):
+docker compose run --rm orchestrator run \
+    --run psalm-91-refuge \
+    --theme "Psalm 91 — dwelling in the shelter of the Most High" \
+    --character scripture-meditations
+```
+
+`--character` takes a prior run name (under `OUTPUT_DIR`) or a path to its
+`02_character_bible/` folder; the equivalent `.env` setting is `CHARACTER_DIR`. New scene
+images are still generated — they're fresh shots **of the same character**, kept on-model by
+the imported reference images. Because each video is its own run folder, the previous ones are
+never overwritten, so they all stack up as a library (ready for the 24/7 stream).
 
 ---
 

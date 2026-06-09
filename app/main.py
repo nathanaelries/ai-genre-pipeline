@@ -66,10 +66,30 @@ def run(
         "cached: concept,music,scenes,images,videos,final,bible,refs. "
         "E.g. --redo concept,music,final to rewrite lyrics without redoing images.",
     ),
+    run_name: str = typer.Option(
+        None, "--run", help="Override RUN_NAME (the output folder) for this run."
+    ),
+    theme: str = typer.Option(
+        None, "--theme", help="Override THEME for this run (e.g. a new verse)."
+    ),
+    character: str = typer.Option(
+        None, "--character",
+        help="Reuse an existing character: a prior run name or path to its "
+        "02_character_bible. Skips regenerating the Visual Bible + reference images.",
+    ),
 ) -> None:
     """Run the full generation pipeline (optionally live-streaming as it goes)."""
     cfg = _load_settings(env_file)
     configure_logging(cfg.log_level, cfg.log_pretty)
+
+    # Per-invocation overrides — handy for spinning up the next video in a series
+    # (new verse + folder) that reuses the same character.
+    if run_name:
+        cfg.run_name = run_name
+    if theme:
+        cfg.theme = theme
+    if character:
+        cfg.character_dir = character
 
     # Import here so `config`/`doctor` work even if a heavy dep is missing.
     from app.config import StreamMode

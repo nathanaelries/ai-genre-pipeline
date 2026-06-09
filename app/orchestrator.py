@@ -19,6 +19,7 @@ and only redoes unfinished work.
 
 from __future__ import annotations
 
+import shutil
 from collections.abc import Callable
 from pathlib import Path
 
@@ -130,6 +131,10 @@ class Orchestrator:
             dry_run=dry_run,
         )
 
+        # Reuse an existing character (Visual Bible + reference images) when
+        # CHARACTER_DIR is set, so a new theme/verse skips regenerating them.
+        self._maybe_import_character()
+
         bible = self._visual_bible()
         self.manifest.visual_bible = bible
         self._save_manifest()
@@ -185,6 +190,55 @@ class Orchestrator:
         cleared = self.state.clear(matches)
         log.info("invalidate", stages=stages, cleared=cleared)
         return cleared
+
+    # ------------------------------------------------------------------ #
+    # Character reuse (series of videos with one consistent character)
+    # ------------------------------------------------------------------ #
+    def _maybe_import_character(self) -> None:
+        """If CHARACTER_DIR is set, copy an existing character's Visual Bible +
+        reference images into this run and mark them done, so only the verse-
+        specific stages regenerate. Idempotent and resume-safe."""
+        raw = self.cfg.character_dir.strip()
+        if not raw:
+            return
+        # Already have a character in this run (e.g. a resumed run)? Skip.
+        if self.state.is_done("bible") and (self.paths.bible / "bible.json").exists():
+            return
+
+        src = self._resolve_character_dir(raw)
+        shutil.copy2(src / "bible.json", self.paths.bible / "bible.json")
+        self.state.mark("bible")
+
+        copied = 0
+        src_refs = src / "reference_images"
+        if src_refs.is_dir():
+            for i, img in enumerate(sorted(src_refs.glob("*.png"))):
+                shutil.copy2(img, self.paths.reference_images / img.name)
+                self.state.mark(f"ref:{i}")
+                copied += 1
+        log.info("character_imported", source=str(src), references=copied)
+
+    def _resolve_character_dir(self, raw: str) -> Path:
+        """Locate a character bible from a run name or a path.
+
+        Accepts: a path to the 02_character_bible folder, a path to a run folder,
+        or just a run name under OUTPUT_DIR. The first candidate containing
+        bible.json wins.
+        """
+        p = Path(raw)
+        candidates = [
+            p,
+            p / "02_character_bible",
+            self.cfg.output_dir / raw / "02_character_bible",
+            self.cfg.output_dir / raw,
+        ]
+        for c in candidates:
+            if (c / "bible.json").exists():
+                return c
+        raise RuntimeError(
+            f"CHARACTER_DIR='{raw}': could not find a character (bible.json). "
+            f"Point it at a prior run name or its 02_character_bible folder."
+        )
 
     # ------------------------------------------------------------------ #
     # Stage 2: Visual Bible

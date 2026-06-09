@@ -138,6 +138,11 @@ class Settings(BaseSettings):
     # ---------------------------- runtime ----------------------------------- #
     output_dir: Path = Field(default=Path("outputs"), alias="OUTPUT_DIR")
     run_name: str = Field(default="", alias="RUN_NAME")
+    # Reuse an existing character instead of generating a new one. Point at a
+    # prior run (by name or path) or its 02_character_bible folder; the Visual
+    # Bible + reference images are imported and marked cached, so a new
+    # theme/verse reuses the exact same character. Empty = generate fresh.
+    character_dir: str = Field(default="", alias="CHARACTER_DIR")
     seed: int = Field(default=42, alias="SEED")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     log_pretty: bool = Field(default=True, alias="LOG_PRETTY")
