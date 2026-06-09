@@ -23,6 +23,9 @@ outputs/*
 inbox/*
 !inbox/.gitkeep
 
+# Local-only scratch: exported MCP tool schemas (not part of this project).
+mcps/
+
 # Local model / tool caches
 comfyui/models/
 .cache/
