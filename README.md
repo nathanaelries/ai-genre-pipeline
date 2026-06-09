@@ -172,7 +172,10 @@ that track's final video (audio muxed in with fades + the lyric overlay) — eve
 cached. Multi-track run? Use `--track 2`, etc.
 
 > **Permission denied?** The container runs as uid 1000, so a file dropped in `./inbox` must be
-> readable by it. If you hit `Can't access ...`, run `sudo chmod -R a+rX inbox` on the host and retry.
+> readable by it. On an **SELinux** host (openSUSE/Fedora/RHEL — check with `getenforce`), the
+> compose file already tags the mount `:z` to relabel it; if you still hit it, run
+> `sudo chcon -Rt container_file_t inbox`. On non-SELinux hosts a plain
+> `sudo chmod -R a+rX inbox` is enough.
 
 Prefer to place the file yourself? Put it at `03_music/track_01.mp3` (or `.wav`) and run
 `run --redo final`; the assembler auto-detects `track_NN.<ext>` and muxes it. (Your `03_music/`

@@ -104,6 +104,11 @@ xai `grok-2-image`. Video: kling `kling-v1`, runway `gen3a_turbo`.
 7. **`prompt_only` music = silent video.** The user renders in Suno, then `add-audio
    <file> --track N` (or drops `03_music/track_NN.<ext>` and runs `run --redo final`).
    Detection sits at the top of `_music_for_track` and overrides the cached empty marker.
+8. **SELinux + bind mounts (the NUC is openSUSE Tumbleweed = SELinux enforcing).** A
+   host bind mount the container can't read throws `EACCES` that `chmod` does NOT fix —
+   the mount needs a `:z` suffix (relabel), or `sudo chcon -Rt container_file_t <dir>`.
+   Named/managed volumes (like `agp_outputs`) are auto-labeled and unaffected. `:z` is a
+   harmless no-op on non-SELinux hosts, so it's safe to bake into compose.
 
 ## Iteration flags worth knowing
 

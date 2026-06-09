@@ -26,17 +26,19 @@ services:
       - agp_outputs:/app/outputs
       # Host drop-folder for importing files (e.g. downloaded Suno songs). Put a
       # file in ./inbox, then: `orchestrator add-audio inbox/track_01.mp3`.
-      - ./inbox:/app/inbox
+      # The `:z` relabels it for SELinux hosts (openSUSE/Fedora/RHEL) so the
+      # non-root container can read it; it's a harmless no-op without SELinux.
+      - ./inbox:/app/inbox:z
       #
       # Prefer the files directly on the host (easier to grab finished videos)?
-      # Comment the line above and uncomment this bind mount instead:
-      # - ./outputs:/app/outputs
+      # Comment the line above and uncomment this bind mount instead (keep :z):
+      # - ./outputs:/app/outputs:z
       #
       # "git pull and run" workflow: mount the source so pulled code changes take
       # effect WITHOUT rebuilding the image (the image bakes app/ in at build time,
       # so otherwise you must `docker compose build` after every pull). You still
       # need to rebuild when requirements.txt changes. Uncomment to enable:
-      # - ./app:/app/app:ro
+      # - ./app:/app/app:ro,z
     # When COMFYUI_URL points at the bundled service below, this lets the
     # orchestrator reach it by service name without host networking.
     networks:
