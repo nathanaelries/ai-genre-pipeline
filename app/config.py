@@ -134,6 +134,9 @@ class Settings(BaseSettings):
     comfyui_video_workflow: str = Field(default="", alias="COMFYUI_VIDEO_WORKFLOW")
     # Image / video model identifiers (overridable per run).
     openai_image_model: str = Field(default="gpt-image-1", alias="OPENAI_IMAGE_MODEL")
+    # gpt-image-1 quality tier: low | medium | high (≈10-15x cost spread). Medium
+    # is a sensible default for ambient backgrounds; low slashes cost further.
+    openai_image_quality: str = Field(default="medium", alias="OPENAI_IMAGE_QUALITY")
     xai_image_model: str = Field(default="grok-2-image", alias="XAI_IMAGE_MODEL")
     runway_model: str = Field(default="gen3a_turbo", alias="RUNWAY_MODEL")
     kling_model: str = Field(default="kling-v1", alias="KLING_MODEL")

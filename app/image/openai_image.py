@@ -20,4 +20,5 @@ class OpenAIImageBackend(OpenAICompatImageBackend):
             model=cfg.openai_image_model,
             send_size=True,
             request_b64=False,
+            quality=cfg.openai_image_quality or None,
         )

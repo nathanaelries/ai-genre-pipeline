@@ -51,6 +51,7 @@ class OpenAICompatImageBackend(ImageBackendBase):
         model: str,
         send_size: bool = True,
         request_b64: bool = False,
+        quality: str | None = None,
     ) -> None:
         super().__init__(cfg)
         if not api_key.strip():
@@ -61,6 +62,8 @@ class OpenAICompatImageBackend(ImageBackendBase):
         self.model = model
         self.send_size = send_size
         self.request_b64 = request_b64
+        # Cost lever (OpenAI gpt-image-1: low|medium|high — ~10-15x price spread).
+        self.quality = quality
         self._client = httpx.Client(timeout=180.0)
 
     @api_retry
@@ -87,6 +90,8 @@ class OpenAICompatImageBackend(ImageBackendBase):
             body["size"] = closest_supported_size(self.cfg.width, self.cfg.height)
         if self.request_b64:
             body["response_format"] = "b64_json"
+        if self.quality:
+            body["quality"] = self.quality
 
         resp = self._client.post(
             f"{self.base_url}/images/generations", headers=headers, json=body
